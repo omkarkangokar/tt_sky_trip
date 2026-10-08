@@ -19,23 +19,32 @@ async def load_byte(dut, value):
 
 
 async def run_case(dut, a_mask, b_mask, a, b):
-    # Pack the masks into a single byte configuration
+    # 1. Provide a quick clean slate for the control pins
+    dut.uio_in.value = 0
+    dut.ui_in.value = 0
+    await ClockCycles(dut.clk, 2)
+
+    # 2. Pack the masks into a single byte configuration
     await load_byte(dut, (b_mask << 4) | a_mask)
     
-    # Corrected: Explicitly extract and merge individual lane elements from the arrays
+    # 3. Extract and merge individual lane elements from the arrays
     await load_byte(dut, (a[1] << 4) | a[0])
     await load_byte(dut, (a[3] << 4) | a[2])
     await load_byte(dut, (b[1] << 4) | b[0])
     await load_byte(dut, (b[3] << 4) | b[2])
 
+    # 4. Fire the start pulse
     dut.uio_in.value = 0b010      # start pulse
     await ClockCycles(dut.clk, 5)
     dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
+    
+    # Give the accelerator a few cycles to clear any previous stale done state
+    await ClockCycles(dut.clk, 5)
 
-    # Validate operation success completion flag
+    # 5. Wait / Validate operation success completion flag
     assert (int(dut.uio_out.value) >> 7) & 1 == 1, "done flag not set"
 
+    # 6. Read results out safely
     dut.uio_in.value = 0b000      # byte select 0
     await ClockCycles(dut.clk, 2)
     low = int(dut.uo_out.value)
@@ -43,10 +52,10 @@ async def run_case(dut, a_mask, b_mask, a, b):
     dut.uio_in.value = 0b100      # byte select 1
     await ClockCycles(dut.clk, 2)
     high = int(dut.uo_out.value)
+    
+    # 7. Reset control state to force the internal flag to clear for the next loop
     dut.uio_in.value = 0
-
-    # Clear done flag state loop safely to prepare for the subsequent test sequence
-    await load_byte(dut, 0x00)
+    await ClockCycles(dut.clk, 2)
 
     return (high << 8) | low
 
