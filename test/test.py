@@ -56,8 +56,8 @@ async def run_case(dut, a_mask, b_mask, a, b):
     return (high << 8) | low
 
 
-# Added a timeout constraint parameter to avoid long workflow hangs
-@cocotb.test(timeout_cycles=5000)
+# FIX: Replaced 'timeout_cycles' with widely-supported time-based timeout parameters
+@cocotb.test(timeout_time=500, timeout_unit="ns")
 async def test_project(dut):
     dut._log.info("Start")
 
