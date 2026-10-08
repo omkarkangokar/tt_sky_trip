@@ -29,8 +29,8 @@ module tb_trip_1x1;
 
   // VCD wave dumping setup (NO backslashes before the dollar signs)
   initial begin
-    \$dumpfile("tb_trip_1x1.vcd");
-    \$dumpvars(0, tb_trip_1x1);
+    //\$dumpfile("tb_trip_1x1.vcd");
+    //\$dumpvars(0, tb_trip_1x1);
   end
 
 endmodule
