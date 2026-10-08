@@ -1,7 +1,7 @@
 # Tiny Tapeout project information
 project:
   title:        "TRIP Sparse Dot-Product Accelerator (1x1)"
-  author:       "YOUR NAME"
+  author:       "Omkar S kangokar"
   discord:      ""
   description:  "Sparse dot product of two 4-lane, 4-bit vectors: mask intersection, prefix-sum packing, parallel multipliers and an adder tree."
   language:     "Verilog"
