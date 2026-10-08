@@ -172,6 +172,14 @@ module tb_trip_1x1;
     end else
       $display("PASS done flag clears on new load");
 
+    // That single byte moved the byte counter to 1. A start pulse resets it
+    // to 0, so the next case begins with byte 0 (the mask byte).
+    @(negedge clk);
+    uio_in[1] = 1'b1;
+    repeat (5) @(negedge clk);
+    uio_in[1] = 1'b0;
+    repeat (3) @(negedge clk);
+
     // Random tests
     for (k = 0; k < 200; k = k + 1) begin
       r_am = $random;
