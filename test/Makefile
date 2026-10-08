@@ -1,18 +1,23 @@
 # Makefile
-# See https://docs.cocotb.org/en/latest/quickstart.html for more info
+# See https://docs.cocotb.org/en/stable/quickstart.html for more info
 
 # defaults
 SIM ?= icarus
+FST ?= -fst # Use more efficient FST format
+IVERILOG = iverilog
+VVP = vvp
+
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = tt_um_trip_accelerator.v trip_core.v mfiu.v prefix_sum.v shift_unit.v multiplier_array.v reduction_tree.v
 
-ifneq ($(GATES),yes)
+VERILOG_SOURCES += $(PWD)/tb.v
 
+ifneq ($(GATES),yes)
 # RTL simulation:
 SIM_BUILD				= sim_build/rtl
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
-
+COMPILE_ARGS += -I$(SRC_DIR)
 else
 
 # Gate level simulation:
@@ -30,15 +35,25 @@ VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
 
 endif
 
-# Allow sharing configuration between design and testbench via `include`:
-COMPILE_ARGS 		+= -I$(SRC_DIR)
+
+sim:
+	mkdir -p $(SIM_BUILD)
+	$(IVERILOG) -g2012 $(COMPILE_ARGS) -o $(SIM_BUILD)/sim.vvp $(VERILOG_SOURCES)
+	$(VVP) $(SIM_BUILD)/sim.vvp $(FST)
+
+clean:
+	rm -rf sim_build
+
+
+# Allow sharing configuration between design and testbench via include:
+#COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
-VERILOG_SOURCES += $(PWD)/tb.v
-TOPLEVEL = tb
 
-# List test modules to run, separated by commas:
-COCOTB_TEST_MODULES = test
+#TOPLEVEL = tb
+
+# List test modules to run, separated by commas and without the .py suffix:
+#COCOTB_TEST_MODULES = test
 
 # include cocotb's make rules to take care of the simulator setup
-include $(shell cocotb-config --makefiles)/Makefile.sim
+#include $(shell cocotb-config --makefiles)/Makefile.sim
