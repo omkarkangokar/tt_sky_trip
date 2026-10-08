@@ -12,18 +12,7 @@ module tb_trip_1x1;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
 
-  // Power pins needed for functional gate-level simulation netlists
-  `ifdef GL_TEST
-    wire VPWR = 1'b1;
-    wire VGND = 1'b0;
-  ``endif
-
   tt_um_trip_accelerator dut (
-      // Conditionally hook up power rails if compiling for GLS
-      `ifdef GL_TEST
-          .VPWR(VPWR),
-          .VGND(VGND),
-      ``endif
       .ui_in  (ui_in),
       .uo_out (uo_out),
       .uio_in (uio_in),
@@ -35,10 +24,5 @@ module tb_trip_1x1;
   );
 
   always #5 clk = ~clk;
-
-  initial begin
-    \$dumpfile("tb_trip_1x1.vcd");
-    \$dumpvars(0, tb_trip_1x1);
-  end
 
 endmodule
