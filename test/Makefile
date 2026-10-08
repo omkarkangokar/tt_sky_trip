@@ -49,7 +49,7 @@ COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
 
-TOPLEVEL = tb
+TOPLEVEL = tb_trip_1x1
 
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test
