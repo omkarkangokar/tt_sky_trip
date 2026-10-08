@@ -9,53 +9,55 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-TRIP is a sparse dot-product accelerator. It takes two vectors, A and B, each with a mask (1 = the entry is
-non-zero), and computes the sum of A[i] x B[i] over the entries that are present in both. Zero entries are skipped.
+TRIP is a sparse dot-product accelerator. It takes two vectors, A and B, each with 4 lanes of 4 bits and a 4-bit
+mask (1 = the entry is non-zero). It computes the sum of A[i] x B[i] over the lanes where both masks are 1.
+Zero entries are skipped.
 
 Example: A = [5, 0, 7, 0] and B = [2, 0, 3, 0] gives 5x2 + 7x3 = 31.
 
-The core is a pipeline run by a controller state machine:
+The core is purely combinational:
 
-1. **Controller** steps through decode, pack, route, multiply, reduce and write, then raises `done`.
-2. **MFIU** takes the masks and values and outputs packed valid operand pairs.
-3. **Routing network** sends each valid pair to a multiplier lane.
-4. **Multiplier array** multiplies all lanes in parallel.
-5. **Reduction tree** adds the products into one 40-bit result.
+1. **MFIU** ANDs the two masks to find the lanes that match, then packs the matching operand pairs to the low
+   lanes (using a prefix sum for each lane's position and a shift unit to move the data).
+2. **Multiplier array** multiplies each packed pair. Unused lanes are zero, so they add nothing.
+3. **Reduction tree** adds the four products into one 10-bit result (the largest possible sum is 4 x 15 x 15 = 900).
 
-The core is parameterised by data width and number of lanes (default 16 lanes of 16 bits). Tiny Tapeout has only
-8 input and 8 output pins, so this chip uses 4 lanes of 8 bits. A small wrapper loads the operands one byte at a
-time and returns the 40-bit result one byte at a time.
+A small wrapper loads the operands one byte at a time, captures the result when you press start, and returns
+the result one byte at a time.
 
 | Pin | Direction | Function |
 |---|---|---|
 | `ui_in[7:0]` | in | Data byte to load |
 | `uio[0]` | in | Load strobe |
 | `uio[1]` | in | Start |
-| `uio[4:2]` | in | Result byte select (0 = lowest byte, 4 = highest) |
+| `uio[2]` | in | Result byte select (0 = bits 7:0, 1 = bits 9:8) |
 | `uio[7]` | out | Done flag |
-| `uo_out[7:0]` | out | Selected byte of the 40-bit result |
+| `uo_out[7:0]` | out | Selected byte of the 10-bit result |
 
-`uio[5]` and `uio[6]` are unused.
+`uio[3]` to `uio[6]` are unused.
 
 ## How to test
 
 1. Reset the chip: hold `rst_n` low, then release it.
-2. Load 9 bytes, one at a time. For each byte, put it on `ui_in`, raise `uio[0]` (load strobe), keep the byte
+2. Load 5 bytes, one at a time. For each byte, put it on `ui_in`, raise `uio[0]` (load strobe), keep the byte
    stable for at least 4 clock cycles, then lower the strobe.
 
    | Byte | Content |
    |---|---|
    | 0 | `{b_mask[3:0], a_mask[3:0]}` |
-   | 1 to 4 | A values, lane 0 to 3 |
-   | 5 to 8 | B values, lane 0 to 3 |
+   | 1 | `{A1, A0}` |
+   | 2 | `{A3, A2}` |
+   | 3 | `{B1, B0}` |
+   | 4 | `{B3, B2}` |
 
-3. Pulse `uio[1]` (start) for at least one clock cycle, only after all 9 bytes are loaded.
-4. Wait until `uio[7]` (done) goes high.
-5. Set `uio[4:2]` to 0, 1, 2, 3 and 4 in turn, and read each result byte from `uo_out`.
-   Byte 0 is the lowest 8 bits and byte 4 is the highest 8 bits.
+3. Pulse `uio[1]` (start) for at least one clock cycle, after the last byte is loaded.
+4. `uio[7]` (done) goes high. Done clears again when you load a new byte.
+5. Set `uio[2]` to 0 and read the low byte from `uo_out`. Set it to 1 and read bits 9:8 (the value is 0 to 3).
 
-Example (expected result 31): load `0x55`, `0x05 0x00 0x07 0x00`, `0x02 0x00 0x03 0x00`.
-After start and done, byte 0 reads `0x1F` (31) and bytes 1 to 4 read `0x00`.
+Example (expected result 31): load `0x55`, `0x05`, `0x07`, `0x02`, `0x03`. After start, the low byte reads
+`0x1F` and the high byte reads `0x00`.
+
+Another example: all masks 1 and all values 15 gives 900, so the low byte reads `0x84` and the high byte `0x03`.
 
 ## External hardware
 
