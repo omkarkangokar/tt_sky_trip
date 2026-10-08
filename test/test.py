@@ -47,8 +47,8 @@ async def run_case(dut, a_mask, b_mask, a, b):
 async def test_project(dut):
     dut._log.info("Start")
 
-    # Keep the clock lines the same as in the template's test.py for your cocotb version
-    clock = Clock(dut.clk, 10, unit="us")
+    # FIX: Changed unit from "us" to "ns" to create a true 100MHz simulation clock
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
     dut.ena.value = 1
