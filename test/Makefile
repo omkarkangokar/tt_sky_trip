@@ -40,11 +40,12 @@ sim:
 	$(IVERILOG) -g2012 $(COMPILE_ARGS) -o $(SIM_BUILD)/sim.vvp $(VERILOG_SOURCES)
 	$(VVP) $(SIM_BUILD)/sim.vvp $(FST)
 
-clean:
+
+clean::
 	rm -rf sim_build
 
 # Allow sharing configuration between design and testbench via include:
-#COMPILE_ARGS 		+= -I$(SRC_DIR)
+COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
 
@@ -53,7 +54,12 @@ TOPLEVEL = tb
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test
 
+# Tell cocotb to clean up your custom sim_build folder automatically
+EXTRA_CLEAN += sim_build
+
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+
 
 
