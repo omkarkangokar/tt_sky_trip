@@ -1,47 +1,30 @@
-# Sample testbench for a Tiny Tapeout project
+# TRIP Sparse Dot-Product Accelerator (1x1 tile)
 
-This is a sample testbench for a Tiny Tapeout project. It uses [cocotb](https://docs.cocotb.org/en/stable/) to drive the DUT and check the outputs.
-See below to get started or for more information, check the [website](https://tinytapeout.com/hdl/testing/).
+A sparse dot-product accelerator written in Verilog for the
+[Tiny Tapeout](https://tinytapeout.com) SKY130 shuttle, sized for a single 1x1 tile.
 
-## Setting up
+It takes two 4-lane, 4-bit vectors with a mask each and computes the sum of
+A[i] x B[i] over the lanes where both masks are 1.
+Example: A = [5, 0, 7, 0], B = [2, 0, 3, 0] gives 31.
 
-1. Edit [Makefile](Makefile) and modify `PROJECT_SOURCES` to point to your Verilog files.
-2. Edit [tb.v](tb.v) and replace `tt_um_example` with your module name.
+The core is combinational: mask intersection and packing (`mfiu`, `prefix_sum`,
+`shift_unit`), parallel multipliers (`multiplier_array`) and an adder tree
+(`reduction_tree`). A wrapper loads 5 bytes, captures the 10-bit result on
+start and returns it in two bytes.
 
-## How to run
+See `docs/info.md` for the pin list and the step-by-step test procedure.
 
-To run the RTL simulation:
+## Files
 
-```sh
-make -B
-```
+| File | Contents |
+|---|---|
+| `src/tt_um_trip_accelerator.v` | Tiny Tapeout wrapper (byte-wise load and read) |
+| `src/trip_core.v` | Core top level |
+| `src/mfiu.v`, `prefix_sum.v`, `shift_unit.v` | Matching and packing |
+| `src/multiplier_array.v`, `reduction_tree.v` | Multiply and add |
+| `test/test.py` | cocotb test |
+| `info.yaml` | Tiny Tapeout project settings |
 
-To run gatelevel simulation, first harden your project and copy `../runs/wokwi/results/final/verilog/gl/{your_module_name}.v` to `gate_level_netlist.v`.
+## License
 
-Then run:
-
-```sh
-make -B GATES=yes
-```
-
-If you wish to save the waveform in VCD format instead of FST format, edit tb.v to use `$dumpfile("tb.vcd");` and then run:
-
-```sh
-make -B FST=
-```
-
-This will generate `tb.vcd` instead of `tb.fst`.
-
-## How to view the waveform file
-
-Using GTKWave
-
-```sh
-gtkwave tb.fst tb.gtkw
-```
-
-Using Surfer
-
-```sh
-surfer tb.fst
-```
+Apache-2.0
