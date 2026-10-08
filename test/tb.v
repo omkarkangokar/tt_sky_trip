@@ -27,7 +27,7 @@ module tb_trip_1x1;
   // Generate a basic clock baseline for the simulator environment
   always #5 clk = ~clk;   // 100 MHz baseline
 
-  // VCD wave dumping setup (Fixed: verified raw dollar sign syntax)
+  // VCD wave dumping setup (NO backslashes before the dollar signs)
   initial begin
     \$dumpfile("tb_trip_1x1.vcd");
     \$dumpvars(0, tb_trip_1x1);
