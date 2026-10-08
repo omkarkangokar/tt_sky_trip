@@ -36,10 +36,6 @@ VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
 endif
 
 
-
-# Allow sharing configuration between design and testbench via include:
-#COMPILE_ARGS 		+= -I$(SRC_DIR)
-
 # Include the testbench sources:
 
 TOPLEVEL = tb
@@ -57,3 +53,6 @@ sim:
 
 clean:
 	rm -rf sim_build
+
+# Allow sharing configuration between design and testbench via include:
+#COMPILE_ARGS 		+= -I$(SRC_DIR)
