@@ -1,3 +1,8 @@
+![](../../workflows/gds/badge.svg) 
+![](../../workflows/docs/badge.svg) 
+![](../../workflows/test/badge.svg) 
+![](../../workflows/fpga/badge.svg)
+
 # TRIP Sparse Dot-Product Accelerator (1x1 tile)
 
 A sparse dot-product accelerator written in Verilog for the
