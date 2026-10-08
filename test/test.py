@@ -47,7 +47,7 @@ async def run_case(dut, a_mask, b_mask, a, b):
 async def test_project(dut):
     dut._log.info("Start")
 
-    # FIX: Changed unit from "us" to "ns" to create a true 100MHz simulation clock
+    # 10ns clock cycle = 100MHz simulation clock
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
@@ -63,7 +63,7 @@ async def test_project(dut):
         (0b0101, 0b0101, [5, 0, 7, 0], [2, 0, 3, 0]),      # 31
         (0b1111, 0b1111, [3, 4, 5, 6], [1, 2, 3, 4]),      # 50
         (0b1111, 0b0000, [1, 2, 3, 4], [5, 6, 7, 8]),      # 0
-        (0b1111, 0b1111, [15] * 4, [15] * 4),              # 900
+        (0b1111, 0b1111, [15, 15, 15, 15], [15, 15, 15, 15]), # 900
         (0b1011, 0b1110, [1, 2, 3, 4], [5, 6, 7, 8]),      # 44
     ]
 
