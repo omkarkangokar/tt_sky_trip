@@ -35,6 +35,16 @@ VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
 
 endif
 
+sim:
+	mkdir -p $(SIM_BUILD)
+	$(IVERILOG) -g2012 $(COMPILE_ARGS) -o $(SIM_BUILD)/sim.vvp $(VERILOG_SOURCES)
+	$(VVP) $(SIM_BUILD)/sim.vvp $(FST)
+
+clean:
+	rm -rf sim_build
+
+# Allow sharing configuration between design and testbench via include:
+#COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
 
@@ -46,13 +56,4 @@ COCOTB_TEST_MODULES = test
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
 
-sim:
-	mkdir -p $(SIM_BUILD)
-	$(IVERILOG) -g2012 $(COMPILE_ARGS) -o $(SIM_BUILD)/sim.vvp $(VERILOG_SOURCES)
-	$(VVP) $(SIM_BUILD)/sim.vvp $(FST)
 
-clean:
-	rm -rf sim_build
-
-# Allow sharing configuration between design and testbench via include:
-#COMPILE_ARGS 		+= -I$(SRC_DIR)
