@@ -205,7 +205,7 @@ module tb;
 
   initial begin
     $dumpfile("tb_trip_1x1.vcd");
-    $dumpvars(0, tb_trip_1x1);
+    $dumpvars(0, tb);
 
     do_reset;
 
