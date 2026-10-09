@@ -13,7 +13,7 @@
 // Pin map:  ui_in = data byte | uio_in[0] = load strobe | uio_in[1] = start
 //           uio_in[2] = result byte select | uio_out[7] = done | uo_out = result byte
 
-module tb_trip_1x1;
+module tb;
 
   reg        clk    = 1'b0;
   reg        rst_n  = 1'b0;
