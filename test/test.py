@@ -1,25 +1,65 @@
-# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-FileCopyrightText: © 2026 Omkar S kangokar
 # SPDX-License-Identifier: Apache-2.0
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles, FallingEdge
+from cocotb.triggers import ClockCycles
 
 
 def expected(a_mask, b_mask, a, b):
     return sum(a[i] * b[i] for i in range(4) if (a_mask >> i) & 1 and (b_mask >> i) & 1)
 
 
-@cocotb.test(timeout_time=500, timeout_unit="us")
+async def load_byte(dut, value):
+    dut.ui_in.value = value
+    dut.uio_in.value = 0b001      # load strobe
+    await ClockCycles(dut.clk, 5)
+    dut.uio_in.value = 0
+    await ClockCycles(dut.clk, 3)
+
+
+async def wait_done(dut, max_cycles=50):
+    """Wait for the done flag (uio_out[7]) to go high."""
+    for _ in range(max_cycles):
+        await ClockCycles(dut.clk, 1)
+        val = dut.uio_out.value
+        if val.is_resolvable and ((int(val) >> 7) & 1) == 1:
+            return
+    raise AssertionError(f"done flag did not go high within {max_cycles} cycles (uio_out={dut.uio_out.value})")
+
+
+async def run_case(dut, a_mask, b_mask, a, b):
+    await load_byte(dut, (b_mask << 4) | a_mask)
+    await load_byte(dut, (a[1] << 4) | a[0])
+    await load_byte(dut, (a[3] << 4) | a[2])
+    await load_byte(dut, (b[1] << 4) | b[0])
+    await load_byte(dut, (b[3] << 4) | b[2])
+
+    dut.uio_in.value = 0b010      # start
+    await ClockCycles(dut.clk, 5)
+    dut.uio_in.value = 0
+
+    await wait_done(dut)
+
+    dut.uio_in.value = 0b000      # byte select 0
+    await ClockCycles(dut.clk, 2)
+    low = int(dut.uo_out.value)
+    dut.uio_in.value = 0b100      # byte select 1
+    await ClockCycles(dut.clk, 2)
+    high = int(dut.uo_out.value)
+    dut.uio_in.value = 0
+
+    return (high << 8) | low
+
+
+@cocotb.test()
 async def test_project(dut):
     dut._log.info("Start")
 
-    # Set the clock period to 10 us (100 KHz)
+    # Keep the clock lines the same as in the template's test.py for your cocotb version
     clock = Clock(dut.clk, 10, unit="us")
     cocotb.start_soon(clock.start())
 
-    # Reset phase
-    dut._log.info("Reset")
     dut.ena.value = 1
     dut.ui_in.value = 0
     dut.uio_in.value = 0
@@ -28,148 +68,16 @@ async def test_project(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 5)
 
-    dut._log.info("Test project behavior")
+    cases = [
+        (0b0101, 0b0101, [5, 0, 7, 0], [2, 0, 3, 0]),      # 31
+        (0b1111, 0b1111, [3, 4, 5, 6], [1, 2, 3, 4]),      # 50
+        (0b1111, 0b0000, [1, 2, 3, 4], [5, 6, 7, 8]),      # 0
+        (0b1111, 0b1111, [15] * 4, [15] * 4),              # 900
+        (0b1011, 0b1110, [1, 2, 3, 4], [5, 6, 7, 8]),      # 44
+    ]
 
-    # ==========================================
-    # TEST CASE 1: Expected Result = 31
-    # ==========================================
-    dut._log.info("Running Case 1...")
-    
-    # Load Masks: 0b0101 (bm) and 0b0101 (am) -> 0x55
-    dut.ui_in.value = 0x55
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load A lanes 0 and 1: -> 0x05
-    dut.ui_in.value = 0x05
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load A lanes 2 and 3: -> 0x07
-    dut.ui_in.value = 0x07
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load B lanes 0 and 1: -> 0x02
-    dut.ui_in.value = 0x02
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load B lanes 2 and 3: -> 0x03
-    dut.ui_in.value = 0x03
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Pulse Start signal
-    dut.uio_in.value = 0b010
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-
-    # DYNAMIC WAIT: Wait up to 50 cycles for the hardware done flag to toggle
-    cycles_waited = 0
-    while True:
-        await FallingEdge(dut.clk)
-        uio_out_str = dut.uio_out.value.binstr
-        if uio_out_str[0] == '1': # Check the MSB (bit 7)
-            break
-        cycles_waited += 1
-        assert cycles_waited < 50, f"Timeout: Done flag stuck at {uio_out_str} after 50 cycles"
-
-    # Read low byte (byte select = 0b000)
-    dut.uio_in.value = 0b000
-    await ClockCycles(dut.clk, 2)
-    low_byte = int(dut.uo_out.value.binstr.replace('x', '0').replace('z', '0'), 2)
-
-    # Read high byte (byte select = 0b100)
-    dut.uio_in.value = 0b100
-    await ClockCycles(dut.clk, 2)
-    high_byte = int(dut.uo_out.value.binstr.replace('x', '0').replace('z', '0'), 2)
-    
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 2)
-    
-    got_1 = (high_byte << 8) | low_byte
-    assert got_1 == 31, f"Case 1 failed: got {got_1}, expected 31"
-
-    # ==========================================
-    # TEST CASE 2: Expected Result = 50
-    # ==========================================
-    dut._log.info("Running Case 2...")
-    
-    # Load Masks: 0b1111 (bm) and 0b1111 (am) -> 0xFF
-    dut.ui_in.value = 0xFF
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load A lanes 0 and 1: -> 0x43
-    dut.ui_in.value = 0x43
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load A lanes 2 and 3: -> 0x65
-    dut.ui_in.value = 0x65
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load B lanes 0 and 1: -> 0x21
-    dut.ui_in.value = 0x21
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Load B lanes 2 and 3: -> 0x43
-    dut.ui_in.value = 0x43
-    dut.uio_in.value = 0b001
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 3)
-
-    # Pulse Start signal
-    dut.uio_in.value = 0b010
-    await ClockCycles(dut.clk, 5)
-    dut.uio_in.value = 0
-
-    # DYNAMIC WAIT: Wait up to 50 cycles for Case 2
-    cycles_waited = 0
-    while True:
-        await FallingEdge(dut.clk)
-        uio_out_str = dut.uio_out.value.binstr
-        if uio_out_str[0] == '1':
-            break
-        cycles_waited += 1
-        assert cycles_waited < 50, f"Timeout: Done flag stuck at {uio_out_str} after 50 cycles"
-
-    # Read low byte
-    dut.uio_in.value = 0b000
-    await ClockCycles(dut.clk, 2)
-    low_byte = int(dut.uo_out.value.binstr.replace('x', '0').replace('z', '0'), 2)
-
-    # Read high byte
-    dut.uio_in.value = 0b100
-    await ClockCycles(dut.clk, 2)
-    high_byte = int(dut.uo_out.value.binstr.replace('x', '0').replace('z', '0'), 2)
-    
-    dut.uio_in.value = 0
-    await ClockCycles(dut.clk, 2)
-    
-    got_2 = (high_byte << 8) | low_byte
-    assert got_2 == 50, f"Case 2 failed: got {got_2}, expected 50"
-
-    dut._log.info("All manual safe execution template tests passed successfully!")
+    for a_mask, b_mask, a, b in cases:
+        got = await run_case(dut, a_mask, b_mask, a, b)
+        want = expected(a_mask, b_mask, a, b)
+        dut._log.info(f"A={a} B={b} masks={a_mask:04b},{b_mask:04b} -> {got} (expected {want})")
+        assert got == want, f"got {got}, expected {want}"
