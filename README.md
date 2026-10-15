@@ -5,7 +5,7 @@
 
 # TRIP Sparse Dot-Product Accelerator (1x1 tile)
 <img width="1408" height="768" alt="image" src="https://github.com/user-attachments/assets/15aa59a3-13d0-48d6-8e34-0fd776f5c7c4" />
-<img width="1408" height="768" alt="image" src="https://github.com/user-attachments/assets/5320aa76-807f-4624-a2e4-1a48f5e43b02" />
+
 
 
 
